@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1 — 2026-10-27
+
+- Added an always-on-top option for the main window.
+- Minimized the main window before keyboard automation so simulated keys go to the previously active application.
+- Increased the recording panel size and split its controls across two rows.
+- Added virtual-key and scan-code selection for recorded playback.
+- Documented the unsigned Windows build warning.
+
 ## 1.0.0 — 2026-10-26
 
 - Initial public release.

@@ -245,8 +245,8 @@ class AutoClickerApp:
     def __init__(self, root):
         self.root = root
         root.title("自動點擊")
-        root.geometry("680x500")
-        root.minsize(600, 430)
+        root.geometry("800x560")
+        root.minsize(680, 500)
         self.running = False
         self.run_mode = None
         self.recording = False
@@ -261,6 +261,9 @@ class AutoClickerApp:
         self.record_button = None
         self.play_button = None
         self.event_list = None
+        self.keep_on_top = tk.BooleanVar(value=False)
+        self.keyboard_mode_minimized = False
+        self.record_window_was_visible = False
         self.hook = HookThread(self.on_input)
         self.hook.start()
         self.hook.ready.wait(2)
@@ -273,7 +276,11 @@ class AutoClickerApp:
         outer = ttk.Frame(self.root, padding=14)
         outer.pack(fill="both", expand=True)
         ttk.Label(outer, text="自動點擊", font=("Microsoft JhengHei UI", 18, "bold")).pack(anchor="w")
-        ttk.Label(outer, text="F6 開始/停止自動操作　·　F7 錄製　·　F8 播放/停止回放", foreground="#555").pack(anchor="w", pady=(2, 12))
+        header = ttk.Frame(outer)
+        header.pack(fill="x", pady=(2, 12))
+        ttk.Label(header, text="F6 開始/停止自動操作　·　F7 錄製　·　F8 播放/停止回放", foreground="#555").pack(side="left")
+        ttk.Checkbutton(header, text="主窗口保持最前", variable=self.keep_on_top,
+                        command=self.apply_topmost).pack(side="right")
 
         click = ttk.LabelFrame(outer, text="自動操作", padding=10)
         click.pack(fill="x", pady=(0, 10))
@@ -353,8 +360,9 @@ class AutoClickerApp:
         window = tk.Toplevel(self.root)
         self.record_window = window
         window.title("錄製與回放")
-        window.geometry("760x520")
-        window.minsize(620, 400)
+        window.geometry("920x600")
+        window.minsize(780, 500)
+        window.attributes("-topmost", bool(self.keep_on_top.get()))
         window.protocol("WM_DELETE_WINDOW", self.hide_recording_window)
         outer = ttk.Frame(window, padding=12)
         outer.pack(fill="both", expand=True)
@@ -363,19 +371,27 @@ class AutoClickerApp:
                   foreground="#555").pack(anchor="w", pady=(2, 10))
         toolbar = ttk.Frame(outer)
         toolbar.pack(fill="x", pady=(0, 8))
-        self.record_button = ttk.Button(toolbar,
+        action_bar = ttk.Frame(toolbar)
+        action_bar.pack(fill="x", pady=(0, 6))
+        self.record_button = ttk.Button(action_bar,
             text="停止錄製 (F7)" if self.recording else "開始錄製 (F7)", command=self.toggle_recording)
         self.record_button.pack(side="left")
-        self.play_button = ttk.Button(toolbar,
+        self.play_button = ttk.Button(action_bar,
             text="停止播放 (F8)" if self.run_mode == "playback" else "循環播放 (F8)",
             command=self.toggle_playback)
         self.play_button.pack(side="left", padx=6)
-        ttk.Button(toolbar, text="清除", command=self.clear_recording).pack(side="left")
-        ttk.Label(toolbar, text="播放輪數（0＝持續到停止）").pack(side="left", padx=(14, 4))
-        ttk.Spinbox(toolbar, from_=0, to=999999, increment=1,
-                    textvariable=self.loop_count, width=8).pack(side="left")
-        ttk.Button(toolbar, text="匯入…", command=self.import_recording).pack(side="right", padx=6)
-        ttk.Button(toolbar, text="匯出…", command=self.export_recording).pack(side="right")
+        ttk.Button(action_bar, text="清除", command=self.clear_recording).pack(side="left")
+        ttk.Button(action_bar, text="匯入…", command=self.import_recording).pack(side="right", padx=6)
+        ttk.Button(action_bar, text="匯出…", command=self.export_recording).pack(side="right")
+        settings_bar = ttk.Frame(toolbar)
+        settings_bar.pack(fill="x")
+        ttk.Label(settings_bar, text="播放輪數（0＝持續到停止）").pack(side="left")
+        ttk.Spinbox(settings_bar, from_=0, to=999999, increment=1,
+                    textvariable=self.loop_count, width=8).pack(side="left", padx=(6, 18))
+        ttk.Label(settings_bar, text="鍵盤回放方式").pack(side="left")
+        self.record_key_method_box = ttk.Combobox(settings_bar, textvariable=self.key_method,
+            values=("虛擬鍵碼", "掃描碼"), state="readonly", width=10)
+        self.record_key_method_box.pack(side="left", padx=6)
         self.event_list = tk.Listbox(outer, height=18, font=("Consolas", 10), selectmode="browse")
         self.event_list.pack(fill="both", expand=True)
         self.refresh_events()
@@ -383,6 +399,23 @@ class AutoClickerApp:
     def hide_recording_window(self):
         if self.record_window is not None and self.record_window.winfo_exists():
             self.record_window.withdraw()
+
+    def apply_topmost(self):
+        topmost = bool(self.keep_on_top.get())
+        self.root.attributes("-topmost", topmost)
+        if self.record_window is not None and self.record_window.winfo_exists():
+            self.record_window.attributes("-topmost", topmost)
+
+    def restore_keyboard_window(self):
+        if self.keyboard_mode_minimized:
+            self.keyboard_mode_minimized = False
+            self.root.deiconify()
+            self.root.lift()
+            if (self.record_window_was_visible and self.record_window is not None
+                    and self.record_window.winfo_exists()):
+                self.record_window.deiconify()
+                self.record_window.lift()
+            self.record_window_was_visible = False
 
     def update_action_controls(self):
         mouse = self.action.get() == "滑鼠點擊"
@@ -415,6 +448,7 @@ class AutoClickerApp:
             if self.play_button is not None and self.play_button.winfo_exists():
                 self.play_button.configure(text="循環播放 (F8)")
             self.status.set("自動操作或回放已停止。")
+            self.restore_keyboard_window()
             return
         try:
             interval = self.interval_seconds()
@@ -440,7 +474,21 @@ class AutoClickerApp:
         key_method = self.key_method.get()
         self.worker = threading.Thread(target=self.click_loop,
             args=(interval, x, y, action, button, key_name_value, repeats, key_method), daemon=True)
-        self.worker.start()
+        if action == "鍵盤按鍵":
+            # Return focus to the previously active application so simulated
+            # keys cannot be typed into this tool's controls.
+            self.keyboard_mode_minimized = True
+            if self.record_window is not None and self.record_window.winfo_exists():
+                self.record_window_was_visible = self.record_window.state() != "withdrawn"
+                self.record_window.withdraw()
+            self.root.iconify()
+            self.root.after(150, self._start_keyboard_clicker)
+        else:
+            self.worker.start()
+
+    def _start_keyboard_clicker(self):
+        if self.running and self.run_mode == "clicker" and self.worker is not None:
+            self.worker.start()
 
     def click_loop(self, interval, x, y, action, button, key_name_value, repeats, key_method):
         deadline = time.perf_counter()
@@ -464,6 +512,8 @@ class AutoClickerApp:
         if self.run_mode == "clicker":
             self.running = False
             self.run_mode = None
+            if self.keyboard_mode_minimized:
+                self.root.after(0, self.restore_keyboard_window)
             self.root.after(0, lambda: self.run_button.configure(text="開始自動操作 (F6)"))
             message = (f"自動操作完成，共執行 {count} 次。" if repeats and count >= repeats
                        else "自動操作已停止。")
