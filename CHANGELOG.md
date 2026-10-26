@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2 — 2026-10-27
+
+- Applied the bundled mouse icon to the main and recording windows at runtime, in addition to the executable file icon.
+
 ## 1.0.1 — 2026-10-27
 
 - Added an always-on-top option for the main window.

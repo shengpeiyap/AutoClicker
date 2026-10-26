@@ -8,5 +8,6 @@ python -m PyInstaller `
     --onefile `
     --windowed `
     --icon mouse.ico `
+    --add-data "mouse.ico;." `
     --name AutoClicker `
     main.py

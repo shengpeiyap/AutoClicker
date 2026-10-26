@@ -4,11 +4,19 @@ from __future__ import annotations
 
 import ctypes
 import json
+import os
+import sys
 import threading
 import time
 import tkinter as tk
 from ctypes import wintypes
 from tkinter import filedialog, messagebox, ttk
+
+
+def resource_path(relative_path: str) -> str:
+    """Resolve a bundled asset in source mode and in a PyInstaller executable."""
+    bundle_dir = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(bundle_dir, relative_path)
 
 
 user32 = ctypes.windll.user32
@@ -245,6 +253,8 @@ class AutoClickerApp:
     def __init__(self, root):
         self.root = root
         root.title("自動點擊")
+        self.app_icon_path = resource_path("mouse.ico")
+        root.iconbitmap(self.app_icon_path)
         root.geometry("800x560")
         root.minsize(680, 500)
         self.running = False
@@ -360,6 +370,7 @@ class AutoClickerApp:
         window = tk.Toplevel(self.root)
         self.record_window = window
         window.title("錄製與回放")
+        window.iconbitmap(self.app_icon_path)
         window.geometry("920x600")
         window.minsize(780, 500)
         window.attributes("-topmost", bool(self.keep_on_top.get()))

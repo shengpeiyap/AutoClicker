@@ -37,6 +37,8 @@ python main.py
 
 Windows 版本目前未使用程式碼簽章憑證簽署，首次下載時 SmartScreen 可能顯示未知發行者警告。請只從本專案 GitHub Releases 下載；Release 頁面提供檔案 SHA-256 摘要供核對。
 
+`mouse.ico` 會設定為 EXE 檔案圖示，也會在程式執行時套用至主窗口和錄製回放窗口。
+
 ## 從原始碼打包
 
 ```powershell
